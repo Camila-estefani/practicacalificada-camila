@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tienda-ropa
+  labels:
+    name: tienda-ropa
+    # Este label permite que el Prometheus Operator descubra
+    # ServiceMonitors en este namespace
+    monitoring: "true"

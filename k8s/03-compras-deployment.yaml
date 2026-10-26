@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compras-service
+  namespace: tienda-ropa
+  labels:
+    app: compras-service
+    version: "1.0.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: compras-service
+  template:
+    metadata:
+      labels:
+        app: compras-service
+        version: "1.0.0"
+    spec:
+      containers:
+        - name: compras-service
+          image: compras-service:1.0.0
+          # imagePullPolicy: Never → usa la imagen local del daemon de Minikube
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8081
+              name: http
+          env:
+            - name: SERVER_PORT
+              value: "8081"
+            - name: CATALOGO_SERVICE_URL
+              value: "http://catalogo-service.tienda-ropa.svc.cluster.local:8080"
+            - name: CATALOGO_TIMEOUT_SECONDS
+              value: "3"
+          # Liveness probe
+          livenessProbe:
+            httpGet:
+              path: /api/compras/health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 5
+          # Readiness probe
+          readinessProbe:
+            httpGet:
+              path: /api/compras/health
+              port: 8081
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 3
+            timeoutSeconds: 3
+          # Límites y solicitudes de recursos
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

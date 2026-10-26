@@ -1,0 +1,93 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: tienda-ropa-alertas
+  namespace: tienda-ropa
+  labels:
+    # Estos labels son OBLIGATORIOS para que el Prometheus Operator
+    # recoja las reglas de alerta
+    release: kube-prometheus-stack
+    app: kube-prometheus-stack
+spec:
+  groups:
+    - name: tienda-ropa.infraestructura
+      interval: 30s
+      rules:
+
+        # ── Alerta 1: catalogo-service caído ─────────────────────────────────
+        - alert: CatalogoServiceCaido
+          expr: up{job="catalogo-service"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            servicio: catalogo-service
+          annotations:
+            summary: "catalogo-service está CAÍDO"
+            description: >
+              El servicio de catálogo de productos no está respondiendo.
+              Prometheus no puede raspar sus métricas. Todos los nuevos intentos
+              de compra fallarán porque compras-service no puede verificar stock.
+
+        # ── Alerta 2: compras-service caído ──────────────────────────────────
+        - alert: ComprasServiceCaido
+          expr: up{job="compras-service"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            servicio: compras-service
+          annotations:
+            summary: "compras-service está CAÍDO"
+            description: >
+              El servicio de compras no está respondiendo.
+              Los clientes no pueden realizar compras en la tienda.
+
+    - name: tienda-ropa.negocio
+      interval: 30s
+      rules:
+
+        # ── Alerta 3: Alta tasa de compras rechazadas (negocio) ───────────────
+        - alert: AltaTasaComprasRechazadas
+          expr: >
+            rate(compras_rechazadas_total[5m]) > 0.5
+          for: 2m
+          labels:
+            severity: warning
+            servicio: compras-service
+          annotations:
+            summary: "Tasa de compras rechazadas superior a 0.5/seg"
+            description: >
+              En los últimos 5 minutos se rechazan más de 0.5 compras por segundo.
+              Puede indicar problemas de stock masivo, falla del catálogo, o
+              un intento de compra automatizado. Revisar logs de compras-service.
+
+        # ── Alerta 4: Timeouts frecuentes hacia catálogo ─────────────────────
+        - alert: TimeoutsCatalogoFrecuentes
+          expr: >
+            rate(compras_timeouts_catalogo_total[5m]) > 0.1
+          for: 2m
+          labels:
+            severity: warning
+            servicio: compras-service
+          annotations:
+            summary: "Timeouts frecuentes al consultar el catálogo"
+            description: >
+              compras-service está experimentando más de 0.1 timeouts/segundo
+              al consultar catalogo-service. Esto indica que catalogo-service
+              está respondiendo lentamente. Los clientes experimentan errores.
+
+        # ── Alerta 5: Latencia alta en consultas al catálogo ─────────────────
+        - alert: LatenciaAltaCatalogo
+          expr: >
+            histogram_quantile(0.95,
+              rate(catalogo_consulta_producto_duration_seconds_bucket[5m])
+            ) > 2
+          for: 2m
+          labels:
+            severity: warning
+            servicio: catalogo-service
+          annotations:
+            summary: "Latencia p95 del catálogo supera los 2 segundos"
+            description: >
+              El percentil 95 de las consultas al catalogo-service supera 2
+              segundos. Esto está cerca del timeout de 3s configurado en
+              compras-service y puede comenzar a generar timeouts en cadena.

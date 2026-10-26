@@ -1,0 +1,41 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# values-prometheus.yaml
+# Configuración personalizada para el chart kube-prometheus-stack
+# Helm repo: prometheus-community/kube-prometheus-stack
+# ─────────────────────────────────────────────────────────────────────────────
+
+grafana:
+  # Contraseña personalizada para el admin de Grafana
+  adminPassword: "TiendaRopa2024!"
+
+  service:
+    type: NodePort
+    nodePort: 30300   # Grafana accesible en http://<minikube-ip>:30300
+
+prometheus:
+  service:
+    type: NodePort
+    nodePort: 30090   # Prometheus accesible en http://<minikube-ip>:30090
+
+  prometheusSpec:
+    # ── CLAVE: sin este selector, Prometheus ignorará los ServiceMonitors
+    # que crees en namespaces que no sean el de monitoring.
+    # matchLabels: {} significa "acepta ServiceMonitors de CUALQUIER namespace"
+    serviceMonitorSelector:
+      matchLabels: {}
+
+    # También necesitamos que busque en todos los namespaces
+    serviceMonitorNamespaceSelector:
+      matchLabels: {}
+
+    # Lo mismo para las PrometheusRules
+    ruleSelector:
+      matchLabels: {}
+
+    ruleNamespaceSelector:
+      matchLabels: {}
+
+alertmanager:
+  service:
+    type: NodePort
+    nodePort: 30093   # AlertManager en http://<minikube-ip>:30093

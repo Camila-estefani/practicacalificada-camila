@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalogo-service
+  namespace: tienda-ropa
+  labels:
+    app: catalogo-service
+    version: "1.0.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catalogo-service
+  template:
+    metadata:
+      labels:
+        app: catalogo-service
+        version: "1.0.0"
+    spec:
+      containers:
+        - name: catalogo-service
+          image: catalogo-service:1.0.0
+          # imagePullPolicy: Never → usa la imagen local del daemon de Minikube
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: SERVER_PORT
+              value: "8080"
+            - name: CATALOGO_DELAY_MS
+              value: "0"
+          # Liveness probe: si falla, Kubernetes reinicia el pod
+          livenessProbe:
+            httpGet:
+              path: /api/catalogo/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 5
+          # Readiness probe: si falla, el pod no recibe tráfico
+          readinessProbe:
+            httpGet:
+              path: /api/catalogo/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 3
+            timeoutSeconds: 3
+          # Límites y solicitudes de recursos
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
